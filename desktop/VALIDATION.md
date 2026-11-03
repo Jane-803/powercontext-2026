@@ -118,7 +118,7 @@ The historical Server c535d816 protocol qualification below records the specific
 
 ## Compatibility scope
 
-[compatibility.json](src-tauri/src/connections/compatibility.json) preserves each recorded Server source, normalized OpenAPI contract digest, qualification-wheel digest and operation set. The `sqlite-atomic-64b5f85a-v1` record matches the bundled API contract and qualifies its eleven recorded SQLite protocol operations against the exact Server source and wheel below. Historical records retain their exact identities and evidence. Ordinary builds require explicitly selecting the record whose tested Server source and wheel match the deployment, then checking the connection before business operations become available. Records with a different contract digest are disabled in the selector, and saved unavailable selections remain visible until explicitly replaced. Selecting a profile does not extend its recorded operation set or qualify a different Server source. CI builds have their own artifact identities and do not change product qualification.
+[compatibility.json](src-tauri/src/connections/compatibility.json) preserves each recorded Server source, normalized OpenAPI contract digest, qualification-wheel digest and operation set. The `sqlite-atomic-0e530365-v1` record matches the bundled API contract and qualifies its eleven recorded SQLite protocol operations against the exact Server source and wheel below. Historical records retain their exact identities and evidence. Ordinary builds require explicitly selecting the record whose tested Server source and wheel match the deployment, then checking the connection before business operations become available. Records with a different contract digest are disabled in the selector, and saved unavailable selections remain visible until explicitly replaced. Selecting a profile does not extend its recorded operation set or qualify a different Server source. CI builds have their own artifact identities and do not change product qualification.
 
 The real Server harness covers SQLite with anonymous loopback, static Bearer, HTTPS with explicit CA/base path, and injected-provider/enforced access. It exercises save/search/exact reads, identity changes, binding revocation, ambiguous writes without replay and Scope pagination. Installed UI checks cover repeated launches preserving the existing editor, late committed-save responses preserving a new Scope draft, explicit connection/Scope selection, clipboard copies, connection isolation, draft cancellation, byte limits and independent Server survival after Desktop exit.
 
@@ -128,20 +128,18 @@ Selecting a compatibility profile does not attest the remote binary identity. Ex
 
 ### Server protocol qualification records
 
-#### Server 64b5f85a protocol qualification
+#### Server 0e530365 protocol qualification
 
-`sqlite-atomic-64b5f85a-v1` qualifies Server source
-`64b5f85a204cf2baf07f712efec48f41f7ba9817` with OpenAPI digest
-`60afafd4608d74bd2c6351da11fe2baca5e5ddc655e17eb6c78b41283853b5b2`.
-The wheel is `powercontext-1.4.2.dev162+g64b5f85a2-py3-none-any.whl`, SHA-256
-`6178c3c2160d50f90cb9763e3971c3e226124081577eb06769273707bd2c9d98`, built with `uv build --wheel` from the
+`sqlite-atomic-0e530365-v1` qualifies Server source
+`0e530365bbe2a83a57024918e810443588d7ae1c` with OpenAPI digest
+`605283debc6f3569a9a9611fc6cf2157ce7fc7e4ddf2c027adc16b8852ad6154`.
+The wheel is `powercontext-1.4.2.dev164+g0e530365b-py3-none-any.whl`, SHA-256
+`6e917600bacc9f6107b1c12f4b253e6d46f3551038f122342ae60afe9d37d95b`, built with `uv build --wheel` from the
 clean checkout of that commit.
 All 685 packaged runtime files match that commit byte for byte, without missing or extra files.
-The sorted runtime manifest digest is `4b8d683fc2fe8e9c42000df26c862df31a500796fbc8fbec450825f5bede9b13`
-(one `wheel/path sha256` line per file, with a final newline). The contract change adds optional context-check
-fields (`conversation_id`, `parent_conversation_id`, `encrypted_receipts`, `receipt`, which a check returns at
-`before_send` and `before_release`) and `context_protection.output_limits` in capabilities; the eleven qualified
-operations are unchanged.
+The sorted runtime manifest digest is `c8013687861e7263a96dfab524eab833bf90a1aadb3943d321109466b4f204ec`
+(one `wheel/path sha256` line per file, with a final newline). The contract change rewords the `receipt` description for the values a `before_send`
+consolidation re-covers; no schema fields changed and the eleven qualified operations are unchanged.
 
 On 2026-11-03, Linux x86_64 (Ubuntu 24.04) and Python 3.13.18 ran the unchanged `desktop/tests/real_server.py`
 against the extracted wheel. Anonymous loopback, static Bearer, HTTPS with an explicit CA and base path, and
@@ -151,8 +149,8 @@ without replay and Server survival after the client exited.
 
 The Rust 1.95.0 native probe was built on the same host, outside the Tauri build container, with
 `cargo build --locked --manifest-path src-tauri/Cargo.toml --example server_probe` (debug profile). Its SHA-256 is
-`d6fbb034dc04d4910d5e9bcfbdcd1272e1b2d3bf93c932e2ed0b99eaaff90761`. No CPU affinity was needed, and no assertions
-or timeouts were changed. The report records Desktop commit `64b5f85a204cf2baf07f712efec48f41f7ba9817` with a
+`e11edef2ec04bfeb42ab08b32fe47c8afd97445ca31cb60afeb304dffe42e7a4`. No CPU affinity was needed, and no assertions
+or timeouts were changed. The report records Desktop commit `0e530365bbe2a83a57024918e810443588d7ae1c` with a
 clean working tree.
 
 This record qualifies the listed SQLite protocol operations. Context preparation, context checks and receipts,
