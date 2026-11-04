@@ -43,6 +43,7 @@ from powercontext.server.settings import McpConfig, ServerSettings
 from tests.e2e.dream_support import atomic_memory_pipeline, memory_source_text
 
 HOOK = Path(__file__).resolve().parents[2] / "integrations/zcode/plugins/powercontext/hooks/user_prompt_submit.mjs"
+SCOPE_TIMEOUT = '{"component":"powercontext.zcode","stage":"scope","code":"timeout"}\n'
 
 
 class DeterministicSourcePipeline:
@@ -83,24 +84,32 @@ def _invoke_hook(
     environment.update(POWERCONTEXT_ZCODE_SERVER_URL=base_url, ZCODE_PLUGIN_DATA=os.environ["ZCODE_PLUGIN_DATA"])
     if scope_id is not None:
         environment["POWERCONTEXT_ZCODE_SCOPE_ID"] = scope_id
-    result = subprocess.run(
-        [node, str(HOOK)],
-        input=json.dumps({
-            "hookEventName": "UserPromptSubmit",
-            "sessionId": session_id,
-            "turnId": turn_id,
-            "cwd": str(HOOK.parents[5]),
-            "prompt": prompt,
-        }),
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=10,
-        env=environment,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stderr in accepted_stderr
-    return json.loads(result.stdout)
+    hook_input = json.dumps({
+        "hookEventName": "UserPromptSubmit",
+        "sessionId": session_id,
+        "turnId": turn_id,
+        "cwd": str(HOOK.parents[5]),
+        "prompt": prompt,
+    })
+    for _ in range(3):
+        result = subprocess.run(
+            [node, str(HOOK)],
+            input=hook_input,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=10,
+            env=environment,
+        )
+        assert result.returncode == 0, result.stderr
+        output = json.loads(result.stdout)
+        if result.stderr != SCOPE_TIMEOUT:
+            assert result.stderr in accepted_stderr
+            return output
+        # Scope resolution failed before capture. A capture timeout may have
+        # committed a write, so it must never take this retry path.
+        assert output == {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": ""}}
+    pytest.fail("Scope resolution timed out on all three Hook invocations")
 
 
 def _run_scope(node: str, environment: dict[str, str], action: str, *extra: str) -> dict[str, Any]:
@@ -271,6 +280,25 @@ def _delay_first_capture_response():
     return middleware
 
 
+def _delay_first_explicit_scope_response():
+    delayed = False
+
+    async def middleware(request, call_next):
+        nonlocal delayed
+        if (
+            delayed
+            or request.url.path != "/v1/scope-bindings/resolve"
+            or (await request.json()).get("explicit_scope_id") is None
+        ):
+            return await call_next(request)
+        delayed = True
+        response = await call_next(request)
+        await asyncio.sleep(1.2)
+        return response
+
+    return middleware
+
+
 @pytest.mark.parametrize(
     ("processing_delay", "binding_delay", "slow_flush_receipt"),
     [(0, 0, False), (1.2, 0, False), (0, 1.2, False), (0, 0, True)],
@@ -306,6 +334,8 @@ def test_zcode_source_is_processed_and_recalled_in_a_new_session(
         return response
 
     app.middleware("http")(_delay_first_capture_response())
+    if slow_flush_receipt:
+        app.middleware("http")(_delay_first_explicit_scope_response())
 
     with socket.socket() as socket_probe:
         socket_probe.bind(("127.0.0.1", 0))
